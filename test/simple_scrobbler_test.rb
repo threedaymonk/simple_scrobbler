@@ -207,7 +207,6 @@ class SimpleScrobblerTest < Test::Unit::TestCase
   def test_should_raise_submission_error_if_submit_response_is_not_ok
     setup_scrobbler_with_session
     stub_handshake handshake_ok_response
-    ss.handshake
     ss.stubs(:post).
        with("http://post2.audioscrobbler.com:80/protocol_1.2", anything).
        returns("FAILED who knows why?\n")
@@ -219,7 +218,6 @@ class SimpleScrobblerTest < Test::Unit::TestCase
   def test_should_raise_data_error_if_length_is_missing_and_source_is_P
     setup_scrobbler_with_session
     stub_handshake handshake_ok_response
-    ss.handshake
     ss.source = "P"
     assert_raises SimpleScrobbler::DataError do
       ss.submit("Sex Pistols", "Anarchy in the UK")
