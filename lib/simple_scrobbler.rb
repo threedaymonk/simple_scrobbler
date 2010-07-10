@@ -2,6 +2,7 @@ require "net/http"
 require "digest/md5"
 require "uri"
 require "cgi"
+require "simple_scrobbler/version"
 
 class SimpleScrobbler
   CLIENT_ID      = "tst"
