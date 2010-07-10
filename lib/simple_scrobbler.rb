@@ -26,7 +26,6 @@ class SimpleScrobbler
     @user        = user
     @session_key = session_key
     @source      = "P"
-    @handshaken  = false
   end
 
   attr_reader :user, :api_key, :secret
