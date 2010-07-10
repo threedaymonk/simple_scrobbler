@@ -92,6 +92,7 @@ class SimpleScrobbler
     status, = split_plain_text_response(post(@submission_url, parameters))
     raise SubmissionError, status unless status == "OK"
   end
+  alias_method :scrobble, :submit
 
   # "The Now-Playing notification is a lightweight mechanism for notifying
   # Last.fm that a track has started playing. This is used for realtime display
