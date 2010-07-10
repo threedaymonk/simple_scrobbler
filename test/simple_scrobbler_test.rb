@@ -302,4 +302,22 @@ class SimpleScrobblerTest < Test::Unit::TestCase
     end
   end
 
+  def test_should_make_get_request_using_escaped_parameters_and_return_body
+    setup_scrobbler_with_session
+    Net::HTTP.expects(:get_response).
+              with(URI.parse("http://example.com/?bar=1&foo=%25")).
+              returns(stub(:body => "BODY"))
+    body = ss.get("http://example.com/", "foo" => "%", "bar" => 1)
+    assert_equal "BODY", body
+  end
+
+  def test_should_make_post_form_request_using_parameters_and_return_body
+    setup_scrobbler_with_session
+    Net::HTTP.expects(:post_form).
+              with(URI.parse("http://example.com/"),
+                   "foo" => "bar").
+              returns(stub(:body => "BODY"))
+    body = ss.post("http://example.com/", "foo" => "bar")
+    assert_equal "BODY", body
+  end
 end
