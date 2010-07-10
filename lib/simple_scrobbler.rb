@@ -163,16 +163,11 @@ private
     query_string = sort_parameters(parameters).
                    map{ |k, v| "#{k}=#{CGI.escape(v)}" }.
                    join("&")
-    Net::HTTP.get_response(
-      URI.parse(url + "?" + query_string)
-    ).body
+    Net::HTTP.get_response(URI.parse(url + "?" + query_string)).body
   end
 
   def post(url, parameters)
-    Net::HTTP.post_form(
-      URI.parse(url),
-      parameters
-    ).body
+    Net::HTTP.post_form(URI.parse(url), parameters).body
   end
 
   def md5(s)
