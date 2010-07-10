@@ -2,6 +2,7 @@ require "net/http"
 require "digest/md5"
 require "uri"
 require "cgi"
+require "rexml/document"
 require "simple_scrobbler/version"
 
 class SimpleScrobbler
@@ -55,14 +56,15 @@ class SimpleScrobbler
   # this is done.
   #
   def fetch_session_key(&blk)
-    request_token = get_xml_tag("token", call_last_fm("method" => "auth.gettoken"))
+    doc = last_fm_web_service("method" => "auth.gettoken")
+    request_token = doc.value_at("//token")
 
     yield "http://www.last.fm/api/auth/?api_key=#{api_key}&token=#{request_token}"
 
-    response = call_last_fm("method" => "auth.getsession", "token" => request_token)
+    doc = last_fm_web_service("method" => "auth.getsession", "token" => request_token)
 
-    @session_key = get_xml_tag("key",  response)
-    @user        = get_xml_tag("name", response)
+    @session_key = doc.value_at("//key")
+    @user        = doc.value_at("//name")
 
     @session_key
   end
@@ -145,9 +147,16 @@ class SimpleScrobbler
   end
 
 private
-  def call_last_fm(parameters={})
-    get("http://ws.audioscrobbler.com/2.0/",
-        signed_parameters(parameters.merge("api_key" => api_key)))
+  module DocHelper
+    def value_at(xpath)
+      elements[xpath].first.to_s.strip
+    end
+  end
+
+  def last_fm_web_service(parameters={})
+    xml = get("http://ws.audioscrobbler.com/2.0/",
+            signed_parameters(parameters.merge("api_key" => api_key)))
+    REXML::Document.new(xml).extend(DocHelper)
   end
 
   def get(url, parameters)
@@ -174,11 +183,6 @@ private
     sorted    = sort_parameters(parameters)
     signature = md5(sorted.flatten.join + secret)
     parameters.merge("api_sig" => signature)
-  end
-
-  def get_xml_tag(tagname, body)
-    r = Regexp.new("<#{tagname}>([^<]+)<\/#{tagname}>")
-    body.match(r)[1].strip
   end
 
   def split_plain_text_response(body)
