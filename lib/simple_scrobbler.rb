@@ -12,6 +12,13 @@ class SimpleScrobbler
   DataError       = Class.new(RuntimeError)
   SessionError    = Class.new(RuntimeError)
 
+  # Instantiate a new SimpleScrobbler instance. If the session key is not
+  # supplied, it must be fetched using fetch_session_key before scrobbling is
+  # attempted.
+  #
+  # Your own API key and secret can be obtained from
+  # http://www.last.fm/api/account
+  #
   def initialize(api_key, secret, user, session_key=nil)
     @api_key     = api_key
     @secret      = secret
