@@ -81,6 +81,7 @@ class SimpleScrobbler
   # :mb_trackid   :: MusicBrainz Track ID
   #
   def submit(artist, track, options={})
+    enforce_keys options, :time, :length, :album, :track_number, :mb_trackid
     if @source == "P" && !options[:length]
       raise DataError, "Track length must be specified if source is P"
     end
@@ -110,6 +111,7 @@ class SimpleScrobbler
   # :mb_trackid   :: MusicBrainz Track ID
   #
   def now_playing(artist, track, options={})
+    enforce_keys options, :length, :album, :track_number, :mb_trackid
     handshake
     parameters =
       generate_scrobbling_parameters(false,
@@ -209,5 +211,11 @@ private
       hash[param] = details[key].to_s
       hash
     }
+  end
+
+  def enforce_keys(hash, *keys)
+    if (extras = hash.keys - keys).any?
+      raise DataError, "Unknown hash key(s): #{extras.inspect}"
+    end
   end
 end

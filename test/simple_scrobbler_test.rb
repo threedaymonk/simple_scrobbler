@@ -255,6 +255,14 @@ class SimpleScrobblerTest < Test::Unit::TestCase
     end
   end
 
+  def test_should_raise_data_error_if_unknown_key_is_sent_to_submit
+    setup_scrobbler_with_session
+    stub_handshake handshake_ok_response
+    assert_raises SimpleScrobbler::DataError do
+      ss.submit("Sex Pistols", "Anarchy in the UK", :length => 211, :foo => "bar")
+    end
+  end
+
   def test_should_send_minimal_now_playing_details
     setup_scrobbler_with_session
     stub_handshake handshake_ok_response
@@ -299,6 +307,14 @@ class SimpleScrobblerTest < Test::Unit::TestCase
        returns("BADSESSION\n")
     assert_raises SimpleScrobbler::SubmissionError do
       ss.now_playing("Sex Pistols", "Anarchy in the UK")
+    end
+  end
+
+  def test_should_raise_data_error_if_unknown_key_is_sent_to_now_playing
+    setup_scrobbler_with_session
+    stub_handshake handshake_ok_response
+    assert_raises SimpleScrobbler::DataError do
+      ss.now_playing("Sex Pistols", "Anarchy in the UK", :foo => "bar")
     end
   end
 
