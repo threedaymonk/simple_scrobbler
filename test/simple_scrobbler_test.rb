@@ -150,7 +150,7 @@ class SimpleScrobblerTest < Test::Unit::TestCase
        returns(response)
   end
 
-  def test_should_submit_a_scrobble
+  def test_should_submit_a_minimal_scrobble
     Time.stubs(:now).returns(Time.at(1278776195))
     setup_scrobbler_with_session
     stub_handshake handshake_ok_response
@@ -168,6 +168,30 @@ class SimpleScrobblerTest < Test::Unit::TestCase
             "l[0]" => "211").
        returns("OK\n")
     ss.submit("Sex Pistols", "Anarchy in the UK", :length => 3*60+31)
+  end
+
+  def test_should_submit_a_full_scrobble
+    setup_scrobbler_with_session
+    stub_handshake handshake_ok_response
+    ss.expects(:post).
+       with("http://post2.audioscrobbler.com:80/protocol_1.2",
+            "s"    => "17E61E13454CDD8B68E8D7DEEEDF6170",
+            "i[0]" => "1278776000",
+            "a[0]" => "Sa Dingding",
+            "t[0]" => "Hua",
+            "b[0]" => "Harmony",
+            "l[0]" => "298",
+            "n[0]" => "3",
+            "o[0]" => "P",
+            "r[0]" => "",
+            "m[0]" => "9999").
+       returns("OK\n")
+    ss.submit("Sa Dingding", "Hua",
+              :album        => "Harmony",
+              :length       => 4*60+58,
+              :track_number => 3,
+              :time         => Time.at(1278776000),
+              :mb_trackid   => 9999)
   end
 
   def test_should_handshake_automatically_once
@@ -228,6 +252,53 @@ class SimpleScrobblerTest < Test::Unit::TestCase
     setup_scrobbler_with_session
     assert_raises SimpleScrobbler::DataError do
       ss.source = "Q"
+    end
+  end
+
+  def test_should_send_minimal_now_playing_details
+    setup_scrobbler_with_session
+    stub_handshake handshake_ok_response
+    ss.expects(:post).
+       with("http://post.audioscrobbler.com:80/np_1.2",
+            "s" => "17E61E13454CDD8B68E8D7DEEEDF6170",
+            "a" => "Sex Pistols",
+            "t" => "Anarchy in the UK",
+            "b" => "",
+            "l" => "",
+            "n" => "",
+            "m" => "").
+       returns("OK\n")
+    ss.now_playing("Sex Pistols", "Anarchy in the UK")
+  end
+
+  def test_should_send_full_now_playing_details
+    setup_scrobbler_with_session
+    stub_handshake handshake_ok_response
+    ss.expects(:post).
+       with("http://post.audioscrobbler.com:80/np_1.2",
+            "s" => "17E61E13454CDD8B68E8D7DEEEDF6170",
+            "a" => "Sa Dingding",
+            "t" => "Hua",
+            "b" => "Harmony",
+            "l" => "298",
+            "n" => "3",
+            "m" => "9999").
+       returns("OK\n")
+    ss.now_playing("Sa Dingding", "Hua",
+                   :album        => "Harmony",
+                   :length       => 4*60+58,
+                   :track_number => 3,
+                   :mb_trackid   => 9999)
+  end
+
+  def test_should_raise_submission_error_if_now_playing_response_is_not_ok
+    setup_scrobbler_with_session
+    stub_handshake handshake_ok_response
+    ss.stubs(:post).
+       with("http://post.audioscrobbler.com:80/np_1.2", anything).
+       returns("BADSESSION\n")
+    assert_raises SimpleScrobbler::SubmissionError do
+      ss.now_playing("Sex Pistols", "Anarchy in the UK")
     end
   end
 

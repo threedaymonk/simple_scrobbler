@@ -83,21 +83,35 @@ class SimpleScrobbler
       raise DataError, "Track length must be specified if source is P"
     end
     handshake
-    parameters = {
-      "s"    => @scrobble_session_id,
-      "a[0]" => artist,
-      "t[0]" => track,
-      "i[0]" => (options[:time] || Time.now).utc.to_i.to_s,
-      "o[0]" => @source,
-      "r[0]" => "",
-      "l[0]" => options[:length],
-      "b[0]" => options[:album],
-      "n[0]" => options[:track_number],
-      "m[0]" => options[:mb_trackid] }
-    parameters.keys.each do |k|
-      parameters[k] = parameters[k].to_s
-    end
-    status, = parse_response(post(@submission_url, parameters))
+    parameters =
+      generate_scrobbling_parameters(true,
+        options.merge(:artist => artist,
+                      :track  => track,
+                      :source => @source,
+                      :time   => (options[:time] || Time.now).utc.to_i))
+    status, = split_plain_text_response(post(@submission_url, parameters))
+    raise SubmissionError, status unless status == "OK"
+  end
+
+  # "The Now-Playing notification is a lightweight mechanism for notifying
+  # Last.fm that a track has started playing. This is used for realtime display
+  # of a user's currently playing track, and does not affect a user's musical
+  # profile."
+  #
+  # The artist and track are required parameters. Other parameters can be added
+  # as options:
+  #
+  # :length       :: Length of the track in seconds
+  # :album        :: Album title
+  # :track_number :: Track number
+  # :mb_trackid   :: MusicBrainz Track ID
+  #
+  def now_playing(artist, track, options={})
+    handshake
+    parameters =
+      generate_scrobbling_parameters(false,
+        options.merge(:artist => artist, :track => track))
+    status, = split_plain_text_response(post(@now_playing_url, parameters))
     raise SubmissionError, status unless status == "OK"
   end
 
@@ -125,7 +139,7 @@ class SimpleScrobbler
     @scrobble_session_id,
     @now_playing_url,
     @submission_url, =
-      parse_response(body)
+      split_plain_text_response(body)
     raise HandshakeError, status unless status == "OK"
   end
 
@@ -166,11 +180,34 @@ private
     body.match(r)[1].strip
   end
 
-  def parse_response(body)
+  def split_plain_text_response(body)
     body.split(/\n/)
   end
 
   def sort_parameters(parameters)
     parameters.map{ |k, v| [k.to_s, v.to_s] }.sort
+  end
+
+  def generate_scrobbling_parameters(for_scrobble, details)
+    mapping = {
+      :artist       => "a",
+      :track        => "t",
+      :length       => "l",
+      :album        => "b",
+      :track_number => "n",
+      :mb_trackid   => "m" }
+    if for_scrobble
+      mapping.merge!(
+        :source => "o",
+        :time   => "i",
+        :rating => "r" )
+      mapping.keys.each do |k|
+        mapping[k] << "[0]"
+      end
+    end
+    mapping.inject({"s" => @scrobble_session_id}){ |hash, (key, param)|
+      hash[param] = details[key].to_s
+      hash
+    }
   end
 end
