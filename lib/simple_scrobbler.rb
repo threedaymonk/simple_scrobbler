@@ -3,6 +3,7 @@ require "digest/md5"
 require "uri"
 require "cgi"
 require "rexml/document"
+require "rexml/xpath"
 require "simple_scrobbler/version"
 
 class SimpleScrobbler
@@ -151,7 +152,7 @@ class SimpleScrobbler
 private
   module DocHelper
     def value_at(xpath)
-      elements[xpath].first.to_s.strip
+      REXML::XPath.first(self, xpath).text.strip
     end
   end
 
