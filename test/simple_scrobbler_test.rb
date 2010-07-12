@@ -12,63 +12,60 @@ end
 
 class SimpleScrobblerTest < Test::Unit::TestCase
 
+  TOKEN               = "cf45fe5a3e3cebe168480a086d7fe481"
+  USER_NAME           = "MyLastFMUsername"
+  SESSION_KEY         = "d580d57f32848f5dcf574d1ce18d78b2"
+  API_KEY             = "APIXXX"
+  SECRET              = "SECRETXXX"
+  WS_ENDPOINT         = "http://ws.audioscrobbler.com/2.0/"
+  HANDSHAKE_URL       = "http://post.audioscrobbler.com/"
+  SCROBBLE_SESSION_ID = "17E61E13454CDD8B68E8D7DEEEDF6170"
+  NOW_PLAYING_URL     = "http://post.audioscrobbler.com:80/np_1.2"
+  SUBMISSION_URL      = "http://post2.audioscrobbler.com:80/protocol_1.2"
+  GETTOKEN_RESPONSE   = %{<lfm status="ok">
+                            <token>#{TOKEN}</token>
+                          </lfm>}
+  GETSESSION_RESPONSE = %{<lfm status="ok">
+                            <session>
+                              <name>#{USER_NAME}</name>
+                              <key>#{SESSION_KEY}</key>
+                              <subscriber>0</subscriber>
+                            </session>
+                          </lfm>}
+
   def setup
     FakeWeb.clean_registry
     FakeWeb.allow_net_connect = false
   end
 
-  def gettoken_response
-    <<-END
-      <lfm status="ok">
-        <token>cf45fe5a3e3cebe168480a086d7fe481</token>
-      </lfm>
-    END
-  end
-
-  def getsession_response
-    <<-END
-      <lfm status="ok">
-        <session>
-          <name>MyLastFMUsername</name>
-          <key>d580d57f32848f5dcf574d1ce18d78b2</key>
-          <subscriber>0</subscriber>
-        </session>
-      </lfm>
-    END
-  end
-
   attr_reader :ss
 
   def setup_scrobbler_without_session
-    @ss = SimpleScrobbler.new("APIXXX", "SECRETXXX", "userxxx")
-  end
-
-  def ws_endpoint
-    "http://ws.audioscrobbler.com/2.0/"
+    @ss = SimpleScrobbler.new(API_KEY, SECRET, "userxxx")
   end
 
   def stub_gettoken_response
     ss.stubs(:get).
-       with(ws_endpoint,
+       with(WS_ENDPOINT,
             has_entry("method" => "auth.gettoken")).
-       returns(gettoken_response)
+       returns(GETTOKEN_RESPONSE)
   end
 
   def stub_getsession_response
     ss.stubs(:get).
-       with(ws_endpoint,
+       with(WS_ENDPOINT,
             has_entry("method" => "auth.getsession")).
-       returns(getsession_response)
+       returns(GETSESSION_RESPONSE)
   end
 
   def test_should_make_signed_gettoken_request
     setup_scrobbler_without_session
     ss.expects(:get).
-       with(ws_endpoint,
-            "api_key" => "APIXXX",
+       with(WS_ENDPOINT,
+            "api_key" => API_KEY,
             "method"  => "auth.gettoken",
             "api_sig" => "365b45edb0f6e1b9e681375e787af0f0").
-       returns(gettoken_response)
+       returns(GETTOKEN_RESPONSE)
     stub_getsession_response
     ss.fetch_session_key{}
   end
@@ -78,7 +75,7 @@ class SimpleScrobblerTest < Test::Unit::TestCase
     stub_gettoken_response
     stub_getsession_response
     ss.fetch_session_key do |auth_url|
-      assert_equal "http://www.last.fm/api/auth/?api_key=APIXXX&token=cf45fe5a3e3cebe168480a086d7fe481", auth_url
+      assert_equal "http://www.last.fm/api/auth/?api_key=#{API_KEY}&token=#{TOKEN}", auth_url
     end
   end
 
@@ -86,16 +83,16 @@ class SimpleScrobblerTest < Test::Unit::TestCase
     setup_scrobbler_without_session
     stub_gettoken_response
     ss.stubs(:get).
-       with("http://ws.audioscrobbler.com/2.0/",
-            "api_key" => "APIXXX",
+       with(WS_ENDPOINT,
+            "api_key" => API_KEY,
             "method"  => "auth.getsession",
-            "token"   => "cf45fe5a3e3cebe168480a086d7fe481",
+            "token"   => TOKEN,
             "api_sig" => "cb155d6f313b229a8445ff14a8e15082").
-       returns(getsession_response)
+       returns(GETSESSION_RESPONSE)
     session_key = ss.fetch_session_key do |auth_url|
       # assume that user has visited auth_url
     end
-    assert_equal "d580d57f32848f5dcf574d1ce18d78b2", session_key
+    assert_equal SESSION_KEY, session_key
   end
 
   def test_should_set_session_key_and_user_from_auth_response
@@ -103,8 +100,8 @@ class SimpleScrobblerTest < Test::Unit::TestCase
     stub_gettoken_response
     stub_getsession_response
     ss.fetch_session_key{}
-    assert_equal "d580d57f32848f5dcf574d1ce18d78b2", ss.session_key
-    assert_equal "MyLastFMUsername", ss.user
+    assert_equal SESSION_KEY, ss.session_key
+    assert_equal USER_NAME, ss.user
   end
 
   def test_should_raise_a_session_error_if_submit_is_called_without_a_session_key
@@ -116,22 +113,22 @@ class SimpleScrobblerTest < Test::Unit::TestCase
 
   def handshake_ok_response
     [ "OK",
-      "17E61E13454CDD8B68E8D7DEEEDF6170",
-      "http://post.audioscrobbler.com:80/np_1.2",
-      "http://post2.audioscrobbler.com:80/protocol_1.2" ].join("\n")
+      SCROBBLE_SESSION_ID,
+      NOW_PLAYING_URL,
+      SUBMISSION_URL ].join("\n")
   end
 
   def setup_scrobbler_with_session
-    @ss = SimpleScrobbler.new("APIXXX", "SECRETXXX", "userxxx", "SESSIONXXX")
+    @ss = SimpleScrobbler.new(API_KEY, SECRET, "userxxx", "SESSIONXXX")
   end
 
   def test_should_handshake
     Time.stubs(:now).returns(Time.at(1278776195))
     setup_scrobbler_with_session
     ss.expects(:get).
-       with("http://post.audioscrobbler.com/",
+       with(HANDSHAKE_URL,
             "a"       => "2fc94a957c7def6846bb334b3e7913f6",
-            "api_key" => "APIXXX",
+            "api_key" => API_KEY,
             "c"       => "tst",
             "hs"      => "true",
             "p"       => "1.2.1",
@@ -145,7 +142,7 @@ class SimpleScrobblerTest < Test::Unit::TestCase
 
   def stub_handshake(response)
     ss.stubs(:get).
-       with("http://post.audioscrobbler.com/",
+       with(HANDSHAKE_URL,
             has_entry("hs" => "true")).
        returns(response)
   end
@@ -155,14 +152,14 @@ class SimpleScrobblerTest < Test::Unit::TestCase
     setup_scrobbler_with_session
     stub_handshake handshake_ok_response
     ss.expects(:post).
-       with("http://post2.audioscrobbler.com:80/protocol_1.2",
+       with(SUBMISSION_URL,
             "i[0]" => "1278776195",
             "t[0]" => "Anarchy in the UK",
             "a[0]" => "Sex Pistols",
             "n[0]" => "",
             "r[0]" => "",
             "o[0]" => "P",
-            "s"    => "17E61E13454CDD8B68E8D7DEEEDF6170",
+            "s"    => SCROBBLE_SESSION_ID,
             "m[0]" => "",
             "b[0]" => "",
             "l[0]" => "211").
@@ -174,8 +171,8 @@ class SimpleScrobblerTest < Test::Unit::TestCase
     setup_scrobbler_with_session
     stub_handshake handshake_ok_response
     ss.expects(:post).
-       with("http://post2.audioscrobbler.com:80/protocol_1.2",
-            "s"    => "17E61E13454CDD8B68E8D7DEEEDF6170",
+       with(SUBMISSION_URL,
+            "s"    => SCROBBLE_SESSION_ID,
             "i[0]" => "1278776000",
             "a[0]" => "Sa Dingding",
             "t[0]" => "Hua",
@@ -197,12 +194,12 @@ class SimpleScrobblerTest < Test::Unit::TestCase
   def test_should_handshake_automatically_once
     setup_scrobbler_with_session
     ss.expects(:get).
-       with("http://post.audioscrobbler.com/",
+       with(HANDSHAKE_URL,
             has_entry("hs" => "true")).
        times(1).
        returns(handshake_ok_response)
     ss.stubs(:post).
-       with("http://post2.audioscrobbler.com:80/protocol_1.2", anything).
+       with(SUBMISSION_URL, anything).
        returns("OK\n")
     2.times do
       ss.submit("Sex Pistols", "Anarchy in the UK", :length => 211)
@@ -214,7 +211,7 @@ class SimpleScrobblerTest < Test::Unit::TestCase
     stub_handshake handshake_ok_response
     ss.source = "R"
     ss.expects(:post).
-       with("http://post2.audioscrobbler.com:80/protocol_1.2",
+       with(SUBMISSION_URL,
             has_entry("o[0]" => "R")).
        returns("OK\n")
     ss.submit("Sex Pistols", "Anarchy in the UK")
@@ -232,7 +229,7 @@ class SimpleScrobblerTest < Test::Unit::TestCase
     setup_scrobbler_with_session
     stub_handshake handshake_ok_response
     ss.stubs(:post).
-       with("http://post2.audioscrobbler.com:80/protocol_1.2", anything).
+       with(SUBMISSION_URL, anything).
        returns("FAILED who knows why?\n")
     assert_raises SimpleScrobbler::SubmissionError do
       ss.submit("Sex Pistols", "Anarchy in the UK", :length => 211)
@@ -267,8 +264,8 @@ class SimpleScrobblerTest < Test::Unit::TestCase
     setup_scrobbler_with_session
     stub_handshake handshake_ok_response
     ss.expects(:post).
-       with("http://post.audioscrobbler.com:80/np_1.2",
-            "s" => "17E61E13454CDD8B68E8D7DEEEDF6170",
+       with(NOW_PLAYING_URL,
+            "s" => SCROBBLE_SESSION_ID,
             "a" => "Sex Pistols",
             "t" => "Anarchy in the UK",
             "b" => "",
@@ -283,8 +280,8 @@ class SimpleScrobblerTest < Test::Unit::TestCase
     setup_scrobbler_with_session
     stub_handshake handshake_ok_response
     ss.expects(:post).
-       with("http://post.audioscrobbler.com:80/np_1.2",
-            "s" => "17E61E13454CDD8B68E8D7DEEEDF6170",
+       with(NOW_PLAYING_URL,
+            "s" => SCROBBLE_SESSION_ID,
             "a" => "Sa Dingding",
             "t" => "Hua",
             "b" => "Harmony",
@@ -303,7 +300,7 @@ class SimpleScrobblerTest < Test::Unit::TestCase
     setup_scrobbler_with_session
     stub_handshake handshake_ok_response
     ss.stubs(:post).
-       with("http://post.audioscrobbler.com:80/np_1.2", anything).
+       with(NOW_PLAYING_URL, anything).
        returns("BADSESSION\n")
     assert_raises SimpleScrobbler::SubmissionError do
       ss.now_playing("Sex Pistols", "Anarchy in the UK")
