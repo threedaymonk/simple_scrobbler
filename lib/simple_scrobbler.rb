@@ -149,6 +149,11 @@ class SimpleScrobbler
     raise HandshakeError, status unless status == "OK"
   end
 
+  # Yield the the user profile url to a block
+  def with_profile_url
+    yield "http://www.last.fm/user/#{user}"
+  end
+
 private
   module DocHelper
     def value_at(xpath)
