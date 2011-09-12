@@ -151,7 +151,7 @@ class SimpleScrobbler
 
   # Yield the the user profile url to a block
   def with_profile_url
-    yield "http://www.last.fm/user/#{user}"
+    yield "http://www.last.fm/user/#{user}" if user
   end
 
 private
