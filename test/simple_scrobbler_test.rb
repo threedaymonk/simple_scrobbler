@@ -333,4 +333,16 @@ class SimpleScrobblerTest < Test::Unit::TestCase
     body = ss.post("http://example.com/", "foo" => "bar")
     assert_equal "BODY", body
   end
+
+  def test_should_yield_profile_url_when_user_has_been_specified
+    yielded = nil
+    SimpleScrobbler.new(:api_key, :secret, 'last_fm_user').with_profile_url {|url| yielded = url }
+    assert_equal 'http://www.last.fm/user/last_fm_user', yielded
+  end
+
+  def test_should_not_yield_profile_url_when_user_has_not_been_specified
+    yielded = false
+    SimpleScrobbler.new(:api_key, :secret, nil).with_profile_url {|*args| yielded = true }
+    assert !yielded
+  end
 end
